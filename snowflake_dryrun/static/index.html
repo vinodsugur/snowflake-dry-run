@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Snowflake Dry Run</title>
+    <title>Snowflake Query Advisor</title>
     <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body>
     <header class="top">
       <div>
-        <p class="kicker">Query planner · local dry run</p>
-        <h1>Snowflake Dry Run</h1>
+        <p class="kicker">Query advisor · local dry run</p>
+        <h1>Snowflake Query Advisor</h1>
       </div>
       <p class="lede">
-        Paste SQL. We compile an EXPLAIN-shaped plan, flag cartesian joins and other row explosions, then estimate runtime on the warehouse you named.
+        Paste SQL. We compile an EXPLAIN-shaped plan, score risk, flag cartesian joins and non-sargable filters, suggest equivalent rewrites, and estimate runtime on the warehouse you named.
       </p>
     </header>
 
@@ -52,11 +52,11 @@
             <input id="schema" placeholder="Schema" />
           </div>
           <p class="hint">
-            Credentials stay in this request. If they are empty, the plan is synthesized from SQL so you can still dry-run locally.
+            Credentials stay in this request. If they are empty, the plan is synthesized from SQL so you can still advise locally.
           </p>
         </details>
         <div class="actions">
-          <button type="button" id="run">Analyze</button>
+          <button type="button" id="run">Advise</button>
           <p class="status" id="status"></p>
         </div>
       </section>
@@ -74,6 +74,10 @@
             <ul class="rationale" id="rationale"></ul>
             <p class="scale" id="scale"></p>
           </div>
+        </div>
+        <div id="rewrites-wrap" hidden>
+          <h2>Suggested SQL</h2>
+          <div id="rewrites"></div>
         </div>
         <h2>Plan operators</h2>
         <div class="table-wrap">

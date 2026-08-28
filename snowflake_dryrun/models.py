@@ -28,6 +28,14 @@ class Finding(BaseModel):
     hint: str | None = None
 
 
+class Rewrite(BaseModel):
+    title: str
+    reason: str
+    sql: str
+    finding_codes: list[str] = Field(default_factory=list)
+    safe: bool = False
+
+
 class PlanNode(BaseModel):
     id: int
     operation: str
@@ -75,6 +83,10 @@ class DryRunResult(BaseModel):
     warehouse: WarehouseAdvice
     static_notes: list[str] = Field(default_factory=list)
     connected: bool = False
+    score: int = 100
+    score_label: str = "healthy"
+    rewrites: list[Rewrite] = Field(default_factory=list)
+    advised_sql: str | None = None
 
 
 class DryRunRequest(BaseModel):

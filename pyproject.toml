@@ -1,7 +1,7 @@
 [project]
 name = "snowflake-dryrun"
 version = "0.1.0"
-description = "Dry-run Snowflake SQL: EXPLAIN JSON analysis, row-explosion warnings, warehouse sizing."
+description = "Advise on Snowflake SQL: EXPLAIN JSON analysis, rewrites, warehouse sizing."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

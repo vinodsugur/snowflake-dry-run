@@ -42,6 +42,11 @@ def synthesize_plan(sql: str) -> ParsedPlan:
             source="synthetic",
         )
 
+    # Lift WHERE equalities onto comma joins so we do not emit a false CrossJoin.
+    from snowflake_dryrun.advisor import _promote_comma_joins
+
+    _promote_comma_joins(tree)
+
     nodes: list[PlanNode] = []
     next_id = 0
 
@@ -133,7 +138,7 @@ def _walk(node: exp.Expression, add, parent_id: int) -> None:
             )
             current_parent = filt.id
 
-        from_ = select.args.get("from")
+        from_ = select.args.get("from_") or select.args.get("from")
         joins = list(select.args.get("joins") or [])
         if joins:
             _walk_joins(select, joins, from_, add, current_parent)

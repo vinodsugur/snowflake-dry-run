@@ -110,3 +110,43 @@ def test_empty_rejected_by_model_still_runs_notes():
     result = run_dry_run(DryRunRequest(sql="SELECT 1"), allow_snowflake=False)
     assert result.source == "synthetic"
     assert result.warehouse.given_size == "XSMALL"
+    assert result.score == 100
+    assert result.score_label == "healthy"
+
+
+def test_comma_join_becomes_inner_join():
+    sql = """
+    SELECT o.order_id, c.email
+    FROM analytics.orders o, analytics.customers c
+    WHERE o.customer_id = c.customer_id
+      AND o.order_date >= '2024-01-01'
+    """
+    result = run_dry_run(DryRunRequest(sql=sql, warehouse_size="MEDIUM"), allow_snowflake=False)
+    codes = {f.code for f in result.findings}
+    assert "CROSS_JOIN" not in codes
+    assert "COMMA_JOIN" in codes
+    assert any(n.operation == "InnerJoin" for n in result.plan.nodes)
+    assert result.advised_sql
+    assert "INNER JOIN" in result.advised_sql.upper()
+    assert "ON" in result.advised_sql.upper()
+    assert any(rw.safe for rw in result.rewrites)
+
+
+def test_year_filter_rewritten_to_range():
+    sql = "SELECT * FROM fact.page_views WHERE YEAR(event_date) = 2024"
+    result = run_dry_run(DryRunRequest(sql=sql), allow_snowflake=False)
+    codes = {f.code for f in result.findings}
+    assert "NON_SARGABLE" in codes
+    assert result.advised_sql
+    assert "YEAR" not in result.advised_sql.upper()
+    assert "2024-01-01" in result.advised_sql
+    assert "2025-01-01" in result.advised_sql
+
+
+def test_or_equalities_become_in():
+    sql = "SELECT COUNT(*) FROM t WHERE status = 'X' OR status = 'Y' OR status = 'Z'"
+    result = run_dry_run(DryRunRequest(sql=sql), allow_snowflake=False)
+    assert any(f.code == "OR_PREDICATE" for f in result.findings)
+    assert result.advised_sql
+    assert "IN" in result.advised_sql.upper()
+
