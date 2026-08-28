@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Snowflake Dry Run</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <p class="kicker">Query planner · local dry run</p>
+        <h1>Snowflake Dry Run</h1>
+      </div>
+      <p class="lede">
+        Paste SQL. We compile an EXPLAIN-shaped plan, flag cartesian joins and other row explosions, then estimate runtime on the warehouse you named.
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="row-head">
+          <h2>Statement</h2>
+          <label class="size">
+            Run on
+            <select id="warehouse">
+              <option>XSMALL</option>
+              <option>SMALL</option>
+              <option selected>MEDIUM</option>
+              <option>LARGE</option>
+              <option>XLARGE</option>
+              <option>XXLARGE</option>
+              <option>XXXLARGE</option>
+              <option>X4LARGE</option>
+            </select>
+          </label>
+        </div>
+        <div class="examples" id="examples"></div>
+        <textarea id="sql" spellcheck="false" placeholder="SELECT …"></textarea>
+        <details class="more">
+          <summary>Optional: paste EXPLAIN JSON or Snowflake login</summary>
+          <label class="block">
+            EXPLAIN USING JSON output
+            <textarea id="explain" class="small" spellcheck="false" placeholder='{"GlobalStats":…, "Operations":[…]}'></textarea>
+          </label>
+          <div class="creds">
+            <input id="account" placeholder="Account" autocomplete="off" />
+            <input id="user" placeholder="User" autocomplete="off" />
+            <input id="password" placeholder="Password" type="password" />
+            <input id="sfWarehouse" placeholder="Warehouse name" />
+            <input id="database" placeholder="Database" />
+            <input id="schema" placeholder="Schema" />
+          </div>
+          <p class="hint">
+            Credentials stay in this request. If they are empty, the plan is synthesized from SQL so you can still dry-run locally.
+          </p>
+        </details>
+        <div class="actions">
+          <button type="button" id="run">Analyze</button>
+          <p class="status" id="status"></p>
+        </div>
+      </section>
+
+      <section class="panel results" id="results" hidden>
+        <div class="metrics" id="metrics"></div>
+        <div class="split">
+          <div>
+            <h2>Findings</h2>
+            <ul class="findings" id="findings"></ul>
+            <ul class="notes" id="notes"></ul>
+          </div>
+          <div>
+            <h2>Warehouse</h2>
+            <ul class="rationale" id="rationale"></ul>
+            <p class="scale" id="scale"></p>
+          </div>
+        </div>
+        <h2>Plan operators</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Id</th>
+                <th>Op</th>
+                <th>Objects</th>
+                <th>Expressions</th>
+                <th>Bytes</th>
+                <th>Parts</th>
+              </tr>
+            </thead>
+            <tbody id="ops"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Estimates are not a Query Profile. Confirm with <code>EXPLAIN USING JSON</code> on Snowflake before changing a production warehouse.
+      </p>
+    </footer>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

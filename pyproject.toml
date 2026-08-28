@@ -1,0 +1,33 @@
+[project]
+name = "snowflake-dryrun"
+version = "0.1.0"
+description = "Dry-run Snowflake SQL: EXPLAIN JSON analysis, row-explosion warnings, warehouse sizing."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.9.0",
+  "sqlglot>=26.0.0",
+  "snowflake-connector-python>=3.12.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0", "httpx>=0.27.0"]
+
+[project.scripts]
+snowflake-dryrun = "snowflake_dryrun.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["snowflake_dryrun*"]
+
+[tool.setuptools.package-data]
+snowflake_dryrun = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
