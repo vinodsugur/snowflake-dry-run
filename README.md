@@ -1,12 +1,14 @@
-# Snowflake Dry Run
+# Snowflake Query Advisor
 
-Analyze a Snowflake query without running it: compile an `EXPLAIN USING JSON` plan (live, pasted, or synthesized from SQL), highlight cartesian joins and other row explosions, and estimate runtime on a named warehouse.
+Analyze a Snowflake query without running it: compile an `EXPLAIN USING JSON` plan (live, pasted, or synthesized from SQL), score risk, suggest equivalent rewrites, highlight cartesian joins and other row explosions, and estimate runtime on a named warehouse.
 
 ## What it does
 
 1. **Plan** — Uses Snowflake `EXPLAIN USING JSON` when you provide account credentials. Otherwise it builds an EXPLAIN-shaped tree from the SQL (sqlglot, Snowflake dialect), or accepts pasted EXPLAIN JSON.
-2. **Findings** — Flags cross/cartesian joins, join predicates missing, `FLATTEN` / `LATERAL` row multiplication, unfiltered or poorly pruned scans, global sorts without `LIMIT`, window functions, and `SELECT *`.
-3. **Warehouse** — You pick the size the query would run on (`XSMALL` … `X4LARGE`). The tool estimates elapsed seconds and credit-hours on that size, and recommends a size for the same work.
+2. **Score** — A 0–100 health score from finding severity (cartesian joins, non-sargable filters, large sorts, and so on).
+3. **Findings** — Flags cross/cartesian joins, join predicates missing, `FLATTEN` / `LATERAL` row multiplication, function-wrapped filters (`YEAR(col)`, `TO_DATE(col)`), leading-wildcard `LIKE`, unfiltered or poorly pruned scans, global sorts without `LIMIT`, window functions, and `SELECT *`.
+4. **Rewrites** — When it can do so safely, emits equivalent SQL: comma joins become `INNER JOIN … ON`, `YEAR(col) = 2024` becomes a closed range, OR equalities become `IN`. Optional rewrites (`UNION ALL`, exploratory `LIMIT`) are labeled separately.
+5. **Warehouse** — You pick the size the query would run on (`XSMALL` … `X4LARGE`). The tool estimates elapsed seconds and credit-hours on that size, and recommends a size for the same work.
 
 Estimates are **not** a Query Profile. Confirm on Snowflake before changing production warehouses.
 
@@ -55,6 +57,8 @@ pytest -q
   "schema": null
 }
 ```
+
+Response includes `score`, `score_label`, `findings`, `rewrites`, `advised_sql`, `plan`, and `warehouse`.
 
 If `explain_json` is set, it is the plan of record. If Snowflake credentials are set and EXPLAIN succeeds, partition and byte stats come from Snowflake. Otherwise the SQL AST is used.
 

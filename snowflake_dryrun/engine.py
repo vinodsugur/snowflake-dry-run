@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from snowflake_dryrun.advisor import advise_sql, score_findings
 from snowflake_dryrun.analyzer import analyze_plan
 from snowflake_dryrun.models import DryRunRequest, DryRunResult, ParsedPlan
 from snowflake_dryrun.plan import parse_explain_payload
@@ -44,6 +45,9 @@ def run_dry_run(req: DryRunRequest, *, allow_snowflake: bool = True) -> DryRunRe
         )
 
     findings = analyze_plan(plan, sql=sql)
+    sql_findings, rewrites, advised_sql = advise_sql(sql)
+    findings = _merge_findings(findings, sql_findings)
+    score, score_label = score_findings(findings)
     warehouse = advise_warehouse(plan, req.warehouse_size, [f.code for f in findings])
     return DryRunResult(
         sql=sql,
@@ -53,4 +57,14 @@ def run_dry_run(req: DryRunRequest, *, allow_snowflake: bool = True) -> DryRunRe
         warehouse=warehouse,
         static_notes=notes,
         connected=connected,
+        score=score,
+        score_label=score_label,
+        rewrites=rewrites,
+        advised_sql=advised_sql,
     )
+
+
+def _merge_findings(plan_findings, sql_findings):
+    from snowflake_dryrun.analyzer import _dedupe
+
+    return _dedupe(list(plan_findings) + list(sql_findings))

@@ -161,3 +161,38 @@ th, td { text-align: left; padding: 0.4rem 0.45rem; border-bottom: 1px solid var
 th { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: #667780; }
 tr.warn td { background: #f8ebe3; }
 code { font-family: var(--mono); font-size: 0.85em; }
+
+.rewrite {
+  border: 1px solid var(--line);
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.7rem;
+  background: #fbf8f0;
+}
+.rewrite.safe { border-left: 3px solid var(--low); }
+.rewrite.optional { border-left: 3px solid var(--med); }
+.rewrite-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.rewrite h3 { margin: 0 0 0.3rem; font-size: 0.98rem; }
+.rewrite pre {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: #10181b;
+  color: #e8f0e9;
+  padding: 0.7rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+.use-sql {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.25rem 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+}

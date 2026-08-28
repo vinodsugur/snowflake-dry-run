@@ -13,9 +13,9 @@ from snowflake_dryrun.models import DryRunRequest, DryRunResult
 STATIC = Path(__file__).parent / "static"
 
 app = FastAPI(
-    title="Snowflake Dry Run",
-    description="Analyze Snowflake SQL via EXPLAIN JSON, flag row explosions, and size the warehouse.",
-    version="0.1.0",
+    title="Snowflake Query Advisor",
+    description="Analyze Snowflake SQL via EXPLAIN JSON, suggest rewrites, and size the warehouse.",
+    version="0.2.0",
 )
 app.add_middleware(
     CORSMiddleware,

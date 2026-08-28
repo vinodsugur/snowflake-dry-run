@@ -10,7 +10,7 @@ from snowflake_dryrun.models import DryRunRequest
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Dry-run a Snowflake query: EXPLAIN analysis, row-explosion warnings, warehouse sizing."
+        description="Advise on a Snowflake query: EXPLAIN analysis, rewrites, warehouse sizing."
     )
     parser.add_argument("sql", nargs="?", help="SQL text. If omitted, read stdin.")
     parser.add_argument("--sql-file", help="Path to a .sql file")
@@ -52,6 +52,7 @@ def main(argv: list[str] | None = None) -> int:
 def _print_human(result) -> None:
     wh = result.warehouse
     print(f"Source: {result.source}")
+    print(f"Score:  {result.score} ({result.score_label})")
     print(f"Given warehouse: {wh.given_size}")
     print(f"Recommended:     {wh.recommended_size}")
     print(f"Est. runtime on given:        {wh.estimated_seconds_on_given:.1f}s")
@@ -73,7 +74,14 @@ def _print_human(result) -> None:
         print("Notes:")
         for n in result.static_notes:
             print(f"  - {n}")
-    print()
+    if result.rewrites:
+        print()
+        print("Suggested rewrites:")
+        for rw in result.rewrites:
+            kind = "safe" if rw.safe else "optional"
+            print(f"  [{kind}] {rw.title}: {rw.reason}")
+            print(rw.sql)
+            print()
     print("Rationale:")
     for line in wh.rationale:
         print(f"  - {line}")

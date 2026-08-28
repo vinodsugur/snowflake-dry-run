@@ -3,6 +3,10 @@ const EXAMPLES = {
 FROM analytics.orders o
 CROSS JOIN analytics.customers c
 WHERE o.order_date >= '2024-01-01';`,
+  "Comma join": `SELECT o.order_id, c.email
+FROM analytics.orders o, analytics.customers c
+WHERE o.customer_id = c.customer_id
+  AND o.order_date >= '2024-01-01';`,
   "Filtered join": `SELECT o.order_id, c.email, o.amount
 FROM analytics.orders o
 INNER JOIN analytics.customers c
@@ -10,6 +14,10 @@ INNER JOIN analytics.customers c
 WHERE o.order_date >= DATEADD(day, -7, CURRENT_DATE())
   AND o.status = 'FULFILLED'
 LIMIT 1000;`,
+  "Non-sargable": `SELECT *
+FROM fact.page_views
+WHERE YEAR(event_date) = 2024
+  AND (status = 'ok' OR status = 'late' OR status = 'retry');`,
   "Flatten explode": `SELECT u.user_id, f.value:sku::string AS sku
 FROM raw.events u,
 LATERAL FLATTEN(input => u.payload:items) f
@@ -98,6 +106,7 @@ function render(data) {
   results.hidden = false;
   const w = data.warehouse;
   document.getElementById("metrics").innerHTML = [
+    metric("Health", `${data.score} · ${data.score_label}`),
     metric("Plan source", data.source),
     metric("Given WH", w.given_size),
     metric("Suggested WH", w.recommended_size),
@@ -127,6 +136,34 @@ function render(data) {
     .map((n) => `<li>${esc(n)}</li>`)
     .join("");
   document.getElementById("scale").textContent = w.scale_note || "";
+
+  const wrap = document.getElementById("rewrites-wrap");
+  const box = document.getElementById("rewrites");
+  if (!data.rewrites || !data.rewrites.length) {
+    wrap.hidden = true;
+    box.innerHTML = "";
+  } else {
+    wrap.hidden = false;
+    box.innerHTML = data.rewrites
+      .map((rw, i) => {
+        const kind = rw.safe ? "safe" : "optional";
+        return `<article class="rewrite ${kind}">
+          <div class="rewrite-head">
+            <h3><span class="badge">${kind}</span>${esc(rw.title)}</h3>
+            <button type="button" class="use-sql" data-idx="${i}">Load into editor</button>
+          </div>
+          <p>${esc(rw.reason)}</p>
+          <pre>${esc(rw.sql)}</pre>
+        </article>`;
+      })
+      .join("");
+    box.querySelectorAll(".use-sql").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rw = data.rewrites[Number(btn.getAttribute("data-idx"))];
+        if (rw) sqlEl.value = rw.sql;
+      });
+    });
+  }
 
   const warnIds = new Set(data.findings.flatMap((f) => f.operator_ids || []));
   document.getElementById("ops").innerHTML = (data.plan.nodes || [])

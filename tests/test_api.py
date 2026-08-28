@@ -12,7 +12,7 @@ def test_health():
 def test_index():
     res = client.get("/")
     assert res.status_code == 200
-    assert "Snowflake Dry Run" in res.text
+    assert "Snowflake Query Advisor" in res.text
 
 
 def test_dry_run_endpoint():
@@ -27,8 +27,30 @@ def test_dry_run_endpoint():
     body = res.json()
     assert any(f["code"] == "CROSS_JOIN" for f in body["findings"])
     assert body["warehouse"]["given_size"] == "SMALL"
+    assert body["score"] < 85
+    assert body["score_label"] == "dangerous"
+
+
+def test_dry_run_comma_join_rewrite():
+    res = client.post(
+        "/api/dry-run",
+        json={
+            "sql": (
+                "SELECT o.id, c.email FROM analytics.orders o, analytics.customers c "
+                "WHERE o.customer_id = c.customer_id AND o.order_date >= '2024-01-01'"
+            ),
+            "warehouse_size": "MEDIUM",
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["advised_sql"]
+    assert "INNER JOIN" in body["advised_sql"].upper()
+    assert any(f["code"] == "COMMA_JOIN" for f in body["findings"])
+    assert not any(f["code"] == "CROSS_JOIN" for f in body["findings"])
 
 
 def test_dry_run_requires_input():
     res = client.post("/api/dry-run", json={"sql": ""})
     assert res.status_code == 400
+
