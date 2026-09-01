@@ -59,9 +59,8 @@ async function analyze() {
     try {
       explainJson = JSON.parse(explain);
     } catch {
-      statusEl.textContent = "EXPLAIN JSON is not valid JSON.";
-      runBtn.disabled = false;
-      return;
+      // Snowflake worksheet copies are often a JSON blob with a header; the API unwraps strings.
+      explainJson = explain;
     }
   }
   const body = {
