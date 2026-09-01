@@ -18,9 +18,22 @@ def run_dry_run(req: DryRunRequest, *, allow_snowflake: bool = True) -> DryRunRe
     connect_error: str | None = None
 
     if req.explain_json:
-        plan = parse_explain_payload(req.explain_json)
-        plan.source = "pasted_json"
-        source = "pasted_json"
+        try:
+            plan = parse_explain_payload(req.explain_json)
+        except Exception as exc:  # noqa: BLE001 — surface malformed EXPLAIN to the UI
+            notes.append(f"EXPLAIN JSON could not be parsed: {exc}")
+            plan = synthesize_plan(sql) if sql else ParsedPlan()
+            source = "synthetic"
+        else:
+            plan.source = "pasted_json"
+            source = "pasted_json"
+            if not plan.nodes:
+                notes.append(
+                    "Pasted EXPLAIN JSON had no operators after parsing. "
+                    "Copy the JSON cell from EXPLAIN USING JSON (not tabular EXPLAIN)."
+                )
+            elif sql:
+                notes.append("Plan operators and byte stats come from the pasted EXPLAIN JSON.")
     elif allow_snowflake and sql:
         creds = req.model_dump(by_alias=True)
         raw, connect_error = fetch_plan_or_none(sql, creds)

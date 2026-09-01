@@ -91,7 +91,7 @@ class DryRunResult(BaseModel):
 
 class DryRunRequest(BaseModel):
     sql: str = ""
-    explain_json: dict[str, Any] | str | None = None
+    explain_json: Any = None
     warehouse_size: WarehouseSize = "XSMALL"
     account: str | None = None
     user: str | None = None

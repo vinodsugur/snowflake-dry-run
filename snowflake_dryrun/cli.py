@@ -32,7 +32,11 @@ def main(argv: list[str] | None = None) -> int:
     explain = None
     if args.explain_json:
         with open(args.explain_json, encoding="utf-8") as fh:
-            explain = json.load(fh)
+            raw = fh.read()
+        try:
+            explain = json.loads(raw)
+        except json.JSONDecodeError:
+            explain = raw
 
     if not sql.strip() and not explain:
         parser.error("Provide SQL, --sql-file, stdin, or --explain-json")

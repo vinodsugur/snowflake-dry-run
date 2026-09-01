@@ -98,6 +98,79 @@ def test_explain_string_unwrap():
     assert plan.global_stats.bytes_assigned == 100
 
 
+def test_snowflake_nested_operations_array():
+    payload = {
+        "GlobalStats": {
+            "partitionsTotal": 2,
+            "partitionsAssigned": 2,
+            "bytesAssigned": 1024,
+        },
+        "Operations": [
+            [
+                {"id": 0, "operation": "Result", "expressions": ["Z1.ID", "Z2.ID"]},
+                {
+                    "id": 1,
+                    "parentOperators": [0],
+                    "operation": "InnerJoin",
+                    "expressions": ["joinKey: (Z2.ID = Z1.ID)"],
+                },
+                {
+                    "id": 2,
+                    "parentOperators": [1],
+                    "operation": "TableScan",
+                    "objects": ["TESTDB.TEMPORARY_DOC_TEST.Z2"],
+                    "partitionsAssigned": 1,
+                    "partitionsTotal": 1,
+                    "bytesAssigned": 512,
+                },
+                {
+                    "id": 3,
+                    "parentOperators": [1],
+                    "operation": "JoinFilter",
+                    "expressions": ["joinKey: (Z2.ID = Z1.ID)"],
+                },
+                {
+                    "id": 4,
+                    "parentOperators": [3],
+                    "operation": "TableScan",
+                    "objects": ["TESTDB.TEMPORARY_DOC_TEST.Z1"],
+                    "partitionsAssigned": 1,
+                    "partitionsTotal": 1,
+                    "bytesAssigned": 512,
+                },
+            ]
+        ],
+    }
+    plan = parse_explain_payload(payload)
+    assert [n.operation for n in plan.nodes] == [
+        "Result",
+        "InnerJoin",
+        "TableScan",
+        "JoinFilter",
+        "TableScan",
+    ]
+    assert plan.global_stats.bytes_assigned == 1024
+    result = run_dry_run(
+        DryRunRequest(sql="select 1", explain_json=payload, warehouse_size="XSMALL"),
+        allow_snowflake=False,
+    )
+    assert result.source == "pasted_json"
+    assert len(result.plan.nodes) == 5
+    assert any("pasted EXPLAIN JSON" in n for n in result.static_notes)
+
+
+def test_explain_json_worksheet_cell_string():
+    inner = {
+        "GlobalStats": {"bytesAssigned": 2048, "partitionsAssigned": 1, "partitionsTotal": 1},
+        "Operations": [[{"id": 0, "operation": "Result"}, {"id": 1, "parent": 0, "operation": "TableScan"}]],
+    }
+    cell = 'EXPLAIN\n' + __import__("json").dumps(inner, separators=(",", ":"))
+    plan = parse_explain_payload(cell)
+    assert len(plan.nodes) == 2
+    assert plan.nodes[1].parent_ids == [0]
+    assert plan.nodes[1].operation == "TableScan"
+
+
 def test_sort_without_limit():
     sql = "SELECT * FROM fact.page_views WHERE event_date >= '2023-01-01' ORDER BY event_ts DESC"
     result = run_dry_run(DryRunRequest(sql=sql, warehouse_size="SMALL"), allow_snowflake=False)

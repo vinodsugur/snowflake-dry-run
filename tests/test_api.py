@@ -50,7 +50,28 @@ def test_dry_run_comma_join_rewrite():
     assert not any(f["code"] == "CROSS_JOIN" for f in body["findings"])
 
 
+def test_dry_run_nested_explain_json():
+    payload = {
+        "GlobalStats": {"bytesAssigned": 4096, "partitionsAssigned": 2, "partitionsTotal": 2},
+        "Operations": [
+            [
+                {"id": 0, "operation": "Result"},
+                {"id": 1, "parentOperators": [0], "operation": "TableScan", "objects": ["DB.SC.T"]},
+            ]
+        ],
+    }
+    res = client.post(
+        "/api/dry-run",
+        json={"sql": "SELECT * FROM t", "warehouse_size": "SMALL", "explain_json": payload},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["source"] == "pasted_json"
+    assert [n["operation"] for n in body["plan"]["nodes"]] == ["Result", "TableScan"]
+
+
 def test_dry_run_requires_input():
     res = client.post("/api/dry-run", json={"sql": ""})
     assert res.status_code == 400
+
 
