@@ -60,7 +60,7 @@ pytest -q
 
 Response includes `score`, `score_label`, `findings`, `rewrites`, `advised_sql`, `plan`, and `warehouse`.
 
-If `explain_json` is set, it is the plan of record. If Snowflake credentials are set and EXPLAIN succeeds, partition and byte stats come from Snowflake. Otherwise the SQL AST is used.
+If `explain_json` is set, it is the plan of record. Snowflake `EXPLAIN USING JSON` nests operators as `Operations: [[...]]`; the advisor flattens that. If Snowflake credentials are set and EXPLAIN succeeds, partition and byte stats come from Snowflake. Otherwise the SQL AST is used.
 
 ## How sizing works
 

@@ -109,8 +109,8 @@ function render(data) {
     metric("Plan source", data.source),
     metric("Given WH", w.given_size),
     metric("Suggested WH", w.recommended_size),
-    metric("Runtime on given", `${w.estimated_seconds_on_given}s`),
-    metric("Runtime on suggested", `${w.estimated_seconds_on_recommended}s`),
+    metric("Runtime on given", fmtDuration(w.estimated_seconds_on_given)),
+    metric("Runtime on suggested", fmtDuration(w.estimated_seconds_on_recommended)),
     metric("Credits (given)", String(w.credit_hours_on_given)),
   ].join("");
 
@@ -193,6 +193,14 @@ function esc(s) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function fmtDuration(s) {
+  const n = Number(s);
+  if (!Number.isFinite(n)) return String(s);
+  if (n < 90) return `${n}s`;
+  if (n < 90 * 60) return `${(n / 60).toFixed(1)} min`;
+  return `${(n / 3600).toFixed(1)} h`;
 }
 
 function fmtBytes(n) {

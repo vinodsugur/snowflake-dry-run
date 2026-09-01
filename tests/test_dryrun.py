@@ -179,6 +179,55 @@ def test_sort_without_limit():
     assert "SELECT_STAR" in codes
 
 
+def test_explain_bytes_runtime_near_scan_io():
+    """12 GiB EXPLAIN IO on MEDIUM should be ~seconds/minutes, not 40+ minutes."""
+    payload = {
+        "GlobalStats": {
+            "partitionsTotal": 120,
+            "partitionsAssigned": 120,
+            "bytesAssigned": 12 * 1024**3,
+        },
+        "Operations": [
+            [
+                {"id": 0, "operation": "Result"},
+                {
+                    "id": 1,
+                    "parentOperators": [0],
+                    "operation": "InnerJoin",
+                    "expressions": ["joinKey: (a = b)"],
+                },
+                {
+                    "id": 2,
+                    "parentOperators": [1],
+                    "operation": "TableScan",
+                    "objects": ["DB.SC.ORDERS"],
+                    "bytesAssigned": 8 * 1024**3,
+                    "partitionsAssigned": 80,
+                    "partitionsTotal": 80,
+                },
+                {
+                    "id": 3,
+                    "parentOperators": [1],
+                    "operation": "TableScan",
+                    "objects": ["DB.SC.CUSTOMERS"],
+                    "bytesAssigned": 4 * 1024**3,
+                    "partitionsAssigned": 40,
+                    "partitionsTotal": 40,
+                },
+            ]
+        ],
+    }
+    result = run_dry_run(
+        DryRunRequest(sql="select 1 from orders o join customers c on o.id = c.id", explain_json=payload, warehouse_size="MEDIUM"),
+        allow_snowflake=False,
+    )
+    assert result.source == "pasted_json"
+    assert "CROSS_JOIN" not in {f.code for f in result.findings}
+    # 12 GiB / (1.25 GiB/s * 4^0.85) ≈ 3s plus light join factor — well under 10 minutes.
+    assert result.warehouse.estimated_seconds_on_given < 600
+    assert result.warehouse.estimated_seconds_on_given >= 2
+
+
 def test_empty_rejected_by_model_still_runs_notes():
     result = run_dry_run(DryRunRequest(sql="SELECT 1"), allow_snowflake=False)
     assert result.source == "synthetic"
