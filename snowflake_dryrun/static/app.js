@@ -164,7 +164,20 @@ function render(data) {
     });
   }
 
-  const warnIds = new Set(data.findings.flatMap((f) => f.operator_ids || []));
+  const warnIds = new Set(
+    data.findings
+      .filter((f) => ["critical", "high", "medium"].includes(f.severity))
+      .flatMap((f) => f.operator_ids || [])
+  );
+  const clusterIds = new Set(
+    data.findings.filter((f) => f.code === "CLUSTERING_KEY_FILTER").flatMap((f) => f.operator_ids || [])
+  );
+  const findingByOp = new Map();
+  (data.findings || []).forEach((f) => {
+    (f.operator_ids || []).forEach((id) => {
+      if (!findingByOp.has(id)) findingByOp.set(id, f);
+    });
+  });
   document.getElementById("ops").innerHTML = (data.plan.nodes || [])
     .map((n) => {
       const bytes = n.bytes_assigned != null ? fmtBytes(n.bytes_assigned) : "—";
@@ -172,13 +185,22 @@ function render(data) {
         n.partitions_assigned != null
           ? `${n.partitions_assigned}/${n.partitions_total ?? "?"}`
           : "—";
-      return `<tr class="${warnIds.has(n.id) ? "warn" : ""}">
+      let cls = "";
+      if (clusterIds.has(n.id)) cls = "cluster";
+      else if (warnIds.has(n.id)) cls = "warn";
+      const tag = clusterIds.has(n.id)
+        ? "filter · clustering key"
+        : findingByOp.has(n.id)
+          ? findingByOp.get(n.id).code
+          : "";
+      return `<tr class="${cls}">
         <td>${n.id}</td>
         <td>${esc(n.operation)}</td>
         <td>${esc((n.objects || []).join(", "))}</td>
         <td>${esc((n.expressions || []).join(" | "))}</td>
         <td>${bytes}</td>
         <td>${parts}</td>
+        <td>${esc(tag)}</td>
       </tr>`;
     })
     .join("");

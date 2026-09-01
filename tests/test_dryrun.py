@@ -265,6 +265,39 @@ def test_year_filter_rewritten_to_range():
     assert "2025-01-01" in result.advised_sql
 
 
+def test_tablescan_clustering_key_filter():
+    payload = {
+        "GlobalStats": {"bytesAssigned": 50 * 1024**2, "partitionsAssigned": 10, "partitionsTotal": 100},
+        "Operations": [
+            [
+                {"id": 0, "operation": "Result"},
+                {"id": 1, "parentOperators": [0], "operation": "Filter", "expressions": ["D.EVENT_DATE >= '2024-01-01'"]},
+                {
+                    "id": 4,
+                    "parentOperators": [1],
+                    "operation": "TableScan",
+                    "objects": ["ANALYTICS.FACT.EVENTS"],
+                    "expressions": ["EVENT_DATE", "filter:(EVENT_DATE >= '2024-01-01')"],
+                    "partitionsAssigned": 10,
+                    "partitionsTotal": 100,
+                    "bytesAssigned": 50 * 1024**2,
+                },
+            ]
+        ],
+    }
+    result = run_dry_run(
+        DryRunRequest(sql="SELECT * FROM analytics.fact.events WHERE event_date >= '2024-01-01'", explain_json=payload),
+        allow_snowflake=False,
+    )
+    codes = {f.code for f in result.findings}
+    assert "CLUSTERING_KEY_FILTER" in codes
+    assert "UNFILTERED_SCAN" not in codes
+    cluster = next(f for f in result.findings if f.code == "CLUSTERING_KEY_FILTER")
+    assert cluster.operator_ids == [4]
+    assert cluster.severity == "info"
+    assert "clustering" in cluster.title.lower()
+
+
 def test_or_equalities_become_in():
     sql = "SELECT COUNT(*) FROM t WHERE status = 'X' OR status = 'Y' OR status = 'Z'"
     result = run_dry_run(DryRunRequest(sql=sql), allow_snowflake=False)
