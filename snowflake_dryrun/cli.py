@@ -59,8 +59,8 @@ def _print_human(result) -> None:
     print(f"Score:  {result.score} ({result.score_label})")
     print(f"Given warehouse: {wh.given_size}")
     print(f"Recommended:     {wh.recommended_size}")
-    print(f"Est. runtime on given:        {wh.estimated_seconds_on_given:.1f}s")
-    print(f"Est. runtime on recommended:  {wh.estimated_seconds_on_recommended:.1f}s")
+    print(f"Est. runtime on given:        {_fmt_secs(wh.estimated_seconds_on_given)}")
+    print(f"Est. runtime on recommended:  {_fmt_secs(wh.estimated_seconds_on_recommended)}")
     print(f"Est. credits on given:        {wh.credit_hours_on_given:.4f} hour")
     print()
     if result.findings:
@@ -89,6 +89,12 @@ def _print_human(result) -> None:
     print("Rationale:")
     for line in wh.rationale:
         print(f"  - {line}")
+
+
+def _fmt_secs(seconds: float) -> str:
+    if seconds < 90:
+        return f"{seconds:.1f}s"
+    return f"{seconds / 60:.1f} min"
 
 
 if __name__ == "__main__":

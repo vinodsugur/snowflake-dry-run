@@ -154,12 +154,14 @@ footer { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 2rem; }
   text-transform: uppercase;
   margin-right: 0.4rem;
 }
+.findings li.info { border-color: var(--accent); }
 .empty { color: #3d6b4f; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.75rem; }
 th, td { text-align: left; padding: 0.4rem 0.45rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: #667780; }
 tr.warn td { background: #f8ebe3; }
+tr.cluster td { background: #e7f3ef; }
 code { font-family: var(--mono); font-size: 0.85em; }
 
 .rewrite {

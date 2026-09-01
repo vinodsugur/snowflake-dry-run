@@ -15,6 +15,8 @@ JOIN_OPS = {
     *CROSS_OPS,
 }
 SCAN_OPS = {"TABLESCAN", "EXTERNALSCAN", "VALUESCAN", "WITHSCAN"}
+FILTER_OPS = {"FILTER", "JOINFILTER"}
+PRED_MARKERS = ("=", ">", "<", " BETWEEN ", " IN ", " LIKE ", " ILIKE ", " IS ", "FILTER:")
 
 
 def analyze_plan(plan: ParsedPlan, sql: str = "") -> list[Finding]:
@@ -151,7 +153,30 @@ def _scan_findings(
         if node.partitions_total and node.partitions_assigned is not None:
             pruned = 1 - (node.partitions_assigned / max(node.partitions_total, 1))
         ancestors = _ancestors(node, by_id)
-        has_filter = any(_norm(a.operation) == "FILTER" for a in ancestors)
+        has_filter = any(_norm(a.operation) in FILTER_OPS for a in ancestors)
+        pushed = _pushed_predicates(node)
+        filtered = has_filter or bool(pushed)
+        prune_note = ""
+        if pruned is not None:
+            prune_note = (
+                f"{node.partitions_assigned}/{node.partitions_total} partitions assigned "
+                f"({pruned:.0%} pruned)."
+            )
+        if pruned is not None and pruned >= 0.5:
+            pred = pushed or "a predicate Snowflake could push into the scan"
+            out.append(
+                Finding(
+                    code="CLUSTERING_KEY_FILTER",
+                    severity="info",
+                    title=f"TableScan {node.id}: filter with clustering key",
+                    detail=(
+                        f"{obj} looks like Query Profile’s clustering-key filter. {prune_note} "
+                        f"Pushed predicate: {pred}."
+                    ).strip(),
+                    operator_ids=[node.id],
+                    hint="Keep filters on the clustering/micro-partition columns so pruning stays this strong.",
+                )
+            )
         if node.bytes_assigned and node.bytes_assigned >= 5 * 1024**3:
             out.append(
                 Finding(
@@ -185,16 +210,25 @@ def _scan_findings(
                         f"({pruned:.0%} pruned)."
                     ),
                     operator_ids=[node.id],
-                    hint="Filter on clustered columns, or cluster/search-optimize the table if this query is frequent.",
+                    hint=(
+                        "A filter may already sit on the clustering key (see TableScan expressions). "
+                        "If pruning is still weak, the predicate does not match how the table is clustered, "
+                        "or the range is too wide."
+                    )
+                    if filtered
+                    else "Filter on clustered columns, or cluster/search-optimize the table if this query is frequent.",
                 )
             )
-        if not has_filter and (node.bytes_assigned or 0) >= 64 * 1024**2:
+        if not filtered and (node.bytes_assigned or 0) >= 64 * 1024**2:
             out.append(
                 Finding(
                     code="UNFILTERED_SCAN",
                     severity="medium",
                     title="Scan with no filter above it",
-                    detail=f"{obj} has no Filter ancestor in the plan, so the warehouse likely reads the assigned partitions in full.",
+                    detail=(
+                        f"{obj} has no Filter/JoinFilter ancestor and no predicate on the scan, "
+                        "so the warehouse likely reads the assigned partitions in full."
+                    ),
                     operator_ids=[node.id],
                     hint="Add a WHERE/JOIN predicate that Snowflake can push into the scan.",
                 )
@@ -211,6 +245,22 @@ def _scan_findings(
                 )
             )
     return out
+
+
+def _pushed_predicates(node: PlanNode) -> str | None:
+    chunks: list[str] = []
+    for expr in node.expressions:
+        text = str(expr).strip()
+        upper = f" {text.upper()} "
+        if text.upper().startswith("FILTER:") or any(m in upper for m in PRED_MARKERS):
+            chunks.append(text)
+    for key in ("filter", "filters", "predicate", "predicates", "clusteringKey", "clustering_key"):
+        val = node.extra.get(key)
+        if val:
+            chunks.append(f"{key}={val}")
+    if not chunks:
+        return None
+    return "; ".join(chunks)
 
 
 def _sort_window_findings(
